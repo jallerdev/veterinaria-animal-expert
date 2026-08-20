@@ -1,0 +1,77 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  margin: 0;
+  overflow-x: hidden;
+  /* Prevent page-level horizontal scroll on all viewports */
+  max-width: 100vw;
+}
+
+::selection {
+  background: #19797B;
+  color: #ffffff;
+}
+
+/* Keyframes en CSS plano para que el purgado de Tailwind nunca los elimine. */
+@keyframes fadeUp {
+  from {
+    opacity: 0;
+    transform: translateY(28px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Reveal-on-scroll: invisible hasta entrar al viewport. */
+.reveal {
+  opacity: 0;
+}
+.reveal.in {
+  animation: fadeUp 0.8s cubic-bezier(0.2, 0.7, 0.3, 1) both;
+}
+/* Salvaguarda: si el JS no corre, el contenido nunca queda oculto. */
+.no-js .reveal {
+  opacity: 1;
+}
+
+/* Línea decorativa clínica (eyebrow). */
+.gold-rule::before,
+.gold-rule::after {
+  content: "";
+  display: inline-block;
+  width: 28px;
+  height: 2px;
+  vertical-align: middle;
+  background: #19797B;
+  opacity: 0.95;
+}
+
+/* Safe-area padding for floating button on notch/bottom-bar devices */
+@supports (padding-bottom: env(safe-area-inset-bottom)) {
+  .floating-safe {
+    bottom: calc(1.25rem + env(safe-area-inset-bottom));
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+  .reveal,
+  .reveal.in {
+    opacity: 1;
+    animation: none;
+  }
+  * {
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+  }
+}
