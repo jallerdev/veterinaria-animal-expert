@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { CalendarCheck, Check, Clock, Loader2, MessageCircle, RotateCcw } from "lucide-react";
 
 import { AGENDA, SERVICES, SITE } from "@/content";
@@ -42,6 +42,11 @@ function prettyDate(iso: string): string {
 }
 
 export default function Agenda() {
+  const sectionRef = useRef<HTMLElement>(null);
+  const successRef = useRef<HTMLHeadingElement>(null);
+  // El efecto de abajo también corre al montar: sin esto, abrir la página
+  // arrastraría el scroll hasta la agenda.
+  const mounted = useRef(false);
   const [service, setService] = useState(SERVICE_OPTS[0]);
   const [values, setValues] = useState({
     name: "",
@@ -97,6 +102,40 @@ export default function Agenda() {
       cancelled = true;
     };
   }, [values.date]);
+
+  // Al pasar de formulario a confirmación (y al revés) la sección cambia de
+  // altura de golpe: ~900 px de formulario contra ~380 px de tarjeta. Si no se
+  // reubica la vista, el scroll queda apuntando dos secciones más abajo.
+  //
+  // Se hace SIN animación y después de dos frames a propósito:
+  //   · dos frames = el navegador ya recalculó el alto del documento, así que
+  //     getBoundingClientRect() devuelve la posición definitiva;
+  //   · sin animación = un scroll suave que arranca justo cuando la página se
+  //     acorta lo cancela el propio navegador al reajustar el scroll, y el
+  //     usuario termina donde no debe (que era justo el bug).
+  useEffect(() => {
+    if (!mounted.current) {
+      mounted.current = true;
+      return;
+    }
+    const el = sectionRef.current;
+    if (!el) return;
+
+    const NAV_OFFSET = 88; // el menú es sticky
+    let inner = 0;
+    const outer = requestAnimationFrame(() => {
+      inner = requestAnimationFrame(() => {
+        const top = Math.max(0, el.getBoundingClientRect().top + window.scrollY - NAV_OFFSET);
+        window.scrollTo({ top, behavior: "auto" });
+        if (done) successRef.current?.focus({ preventScroll: true });
+      });
+    });
+
+    return () => {
+      cancelAnimationFrame(outer);
+      cancelAnimationFrame(inner);
+    };
+  }, [done]);
 
   const set = (key: keyof typeof values, v: string) => {
     setValues((s) => ({ ...s, [key]: v }));
@@ -182,17 +221,26 @@ export default function Agenda() {
   };
 
   return (
-    <section id="agenda" className="bg-paper px-4 py-16 sm:px-6 sm:py-20 lg:py-28">
+    <section
+      id="agenda"
+      ref={sectionRef}
+      style={{ overflowAnchor: "none" }}
+      className="scroll-mt-24 bg-paper px-4 py-16 sm:px-6 sm:py-20 lg:py-28"
+    >
       <div className="mx-auto max-w-[760px]">
         <SectionHeading eyebrow={AGENDA.eyebrow} title={AGENDA.title} subtitle={AGENDA.subtitle} />
 
         <Reveal className="mt-10 rounded-3xl border border-line bg-paper p-7 shadow-card sm:p-9">
           {done ? (
-            <div className="text-center">
+            <div className="flex min-h-[380px] flex-col items-center justify-center text-center">
               <span className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-gold-tint text-gold-deep">
                 <Check className="h-7 w-7" strokeWidth={2.2} />
               </span>
-              <h3 className="mt-5 font-display text-[26px] font-semibold text-ink">
+              <h3
+                ref={successRef}
+                tabIndex={-1}
+                className="mt-5 font-display text-[26px] font-semibold text-ink outline-none"
+              >
                 {done.confirmed ? AGENDA.success.confirmedTitle : AGENDA.success.pendingTitle}
               </h3>
               {done.when && (

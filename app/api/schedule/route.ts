@@ -85,8 +85,18 @@ export async function POST(req: Request) {
   const petSummary = [pet, species, breed, age].filter(Boolean).join(" · ");
 
   let confirmed = false;
+  // Por qué NO quedó confirmada, para poder diagnosticarlo desde los logs y la
+  // respuesta sin tener que adivinar. No expone nada sensible.
+  let reason: "ok" | "google_not_configured" | "calendar_error" = "ok";
 
-  if (isGoogleConfigured()) {
+  if (!isGoogleConfigured()) {
+    reason = "google_not_configured";
+    console.warn(
+      "[schedule] Falta GOOGLE_CLIENT_ID / GOOGLE_CLIENT_SECRET / GOOGLE_REFRESH_TOKEN: " +
+        "la cita NO se creó en el calendario y se cerrará por WhatsApp. " +
+        "Revisa .env.local y reinicia el servidor (Next lee el entorno al arrancar)."
+    );
+  } else {
     // Revalidar contra el calendario para que dos personas no tomen el mismo horario.
     const slots = await freeSlots(date);
     if (!slots.includes(time)) {
@@ -135,8 +145,10 @@ export async function POST(req: Request) {
       confirmed = true;
     } catch (err) {
       // El calendario falló: se degrada a confirmación por WhatsApp, no se pierde el lead.
+      // Corre `node scripts/google-check.mjs` para ver la causa exacta.
       console.error("[schedule] createAppointment falló:", err);
       confirmed = false;
+      reason = "calendar_error";
     }
   }
 
@@ -168,6 +180,7 @@ export async function POST(req: Request) {
   return NextResponse.json({
     ok: true,
     confirmed,
+    reason,
     leadSaved,
     when: `${prettyDate(date)} a las ${time}`,
   });

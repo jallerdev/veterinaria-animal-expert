@@ -106,16 +106,36 @@ calendario falla (token vencido, API caída) hace lo mismo, en vez de mostrar
 
 ### Conectar el calendario
 
-1. En Google Cloud Console, **con la cuenta de la clínica**: crear proyecto,
-   habilitar *Google Calendar API*, pantalla de consentimiento OAuth (External)
-   con ese correo como usuario de prueba.
+1. En Google Cloud Console, **con la cuenta de la clínica**: crear el proyecto y
+   **habilitar la *Google Calendar API*** en *APIs y servicios → Biblioteca*.
+   Este paso es el que más se olvida: sin él el token se genera bien y **todas**
+   las llamadas fallan con `403 SERVICE_DISABLED`. Después, pantalla de
+   consentimiento OAuth (External) con ese correo como usuario de prueba.
 2. Credenciales → ID de cliente OAuth → *Aplicación web* → URI de redirección
    `http://localhost:5555/oauth2callback`.
 3. `cp .env.example .env.local` y pegar `GOOGLE_CLIENT_ID` y `GOOGLE_CLIENT_SECRET`.
 4. `node scripts/google-auth.mjs` → autorizar → copiar el `GOOGLE_REFRESH_TOKEN`
    que imprime a `.env.local`.
-5. Reiniciar `npm run dev`. Desde ahí las citas entran al calendario y, si el
-   dueño deja su correo, Google le manda la invitación con recordatorio.
+5. `node scripts/google-check.mjs` — verifica el token, lista los calendarios a
+   los que la cuenta tiene acceso y avisa si la API está deshabilitada o si el
+   calendario elegido es de solo lectura. No crea ni borra nada.
+6. Reiniciar `npm run dev`. **Next lee el entorno al arrancar**: si se edita el
+   `.env` con el servidor encendido, sigue corriendo sin las variables y las
+   citas se guardan como "pendientes" sin ningún error visible. El banner de
+   arranque debe mostrar la línea `- Environments: .env`.
+
+Desde ahí las citas entran al calendario y, si el dueño deja su correo, Google le
+manda la invitación con recordatorio.
+
+### Cuando una cita no aparece en el calendario
+
+`POST /api/schedule` devuelve un campo `reason`:
+
+| `reason` | Significa |
+|---|---|
+| `ok` | La cita quedó en el calendario |
+| `google_not_configured` | El servidor no ve las credenciales → reiniciar `npm run dev` |
+| `calendar_error` | Google rechazó la llamada → `node scripts/google-check.mjs` da la causa |
 
 En producción esas variables van en el panel del hosting, nunca en el repo.
 
