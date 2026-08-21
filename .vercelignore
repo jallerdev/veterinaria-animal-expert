@@ -1,0 +1,6 @@
+# Nunca subir secretos al deploy (Vercel también respeta .gitignore, esto es
+# explícito por si acaso). Las variables van en el panel del proyecto.
+.env
+.env.*
+node_modules
+.next
